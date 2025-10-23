@@ -22,7 +22,6 @@ export function FilterTabs() {
   return (
     <div className="mb-6">
       <div className="flex items-center gap-4 mb-4">
-        {/* Search */}
         <div className="flex-1 max-w-xs relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
@@ -31,7 +30,6 @@ export function FilterTabs() {
           />
         </div>
 
-        {/* Filter & Bookmark Buttons */}
         <Button variant="outline" size="icon" className="bg-[#2c3e50] border-[#3d5266] text-white hover:bg-[#3d5266]">
           <SlidersHorizontal className="h-4 w-4" />
         </Button>
@@ -40,7 +38,6 @@ export function FilterTabs() {
         </Button>
       </div>
 
-      {/* Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2">
         {filters.map((filter) => (
           <button
