@@ -8,13 +8,12 @@ import {
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
+    deleteUser,
     User as FirebaseUser,
     Auth,
     UserCredential,
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore';
-// Importação do useRouter para forçar redirecionamento após cadastro
-import { useRouter } from 'next/router';
 
 const USER_COLLECTION_NAME = 'users';
 
@@ -63,7 +62,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const router = useRouter(); // Inicializa o router
 
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
@@ -98,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [fetchData]);
 
     const register = async (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => {
-        let user: FirebaseUser;
+        let user: FirebaseUser | null = null;
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             user = userCredential.user;
@@ -115,22 +113,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await new Promise(resolve => setTimeout(resolve, 500));
             await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
             
-            // Sucesso na gravação:
             setUserData(data); 
-
-            // FORÇA O REDIRECIONAMENTO PARA O DASHBOARD
-            router.replace('/dashboard');
+            setCurrentUser(user);
 
         } catch (error) {
-            console.error("Erro completo durante o registro ou setDoc:", error);
+            console.error("Erro completo durante o setDoc no Firestore:", error);
+            if (user) {
+                try {
+                    await deleteUser(user);
+                    console.warn("Usuário Auth deletado devido à falha na gravação do Firestore.");
+                } catch (deleteError) {
+                    console.error("Erro ao deletar usuário após falha do Firestore:", deleteError);
+                }
+            }
             throw error;
         }
     };
 
     const login = async (email: string, password: string) => {
-         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-         // Após o login, o onAuthStateChanged fará a busca. Redirecionar aqui é opcional.
-         return userCredential;
+         return signInWithEmailAndPassword(auth, email, password);
     };
 
     const logout = () => {
