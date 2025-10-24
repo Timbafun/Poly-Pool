@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { db } from '../../lib/utils';
+import { db } from '@/firebase/config';
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useAuth } from '@/components/AuthManager';
 

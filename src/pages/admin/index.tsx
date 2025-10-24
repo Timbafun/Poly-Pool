@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { db } from '../../lib/utils';
+import { db } from '@/firebase/config';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/components/AuthManager';

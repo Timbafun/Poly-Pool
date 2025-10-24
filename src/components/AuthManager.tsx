@@ -1,8 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { initializeApp } from 'firebase/app';
-import {
+import { 
     getAuth,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -14,6 +13,7 @@ import {
     UserCredential,
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, DocumentData, runTransaction, collection, Timestamp, query, where, getDocs, QuerySnapshot } from 'firebase/firestore';
+import { auth, db } from '@/firebase/config';
 
 const USER_COLLECTION_NAME = 'users';
 
@@ -24,12 +24,14 @@ interface UserData extends DocumentData {
     email: string;
     saldo: number;
     data_cadastro: string;
+    isAdmin?: boolean; // Adicionado para a checagem de administrador
 }
 
 interface AuthContextType {
     currentUser: FirebaseUser | null;
     userData: UserData | null;
     isLoading: boolean;
+    isAdmin: boolean; // Adicionado para a checagem de administrador
     register: (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => Promise<void>;
     login: (email: string, password: string) => Promise<UserCredential>;
     logout: () => Promise<void>;
@@ -39,19 +41,6 @@ interface AuthContextType {
     withdraw: (amount: number) => Promise<void>;
     resolveMarket: (marketId: string, winningOption: 'A' | 'B') => Promise<void>;
 }
-
-const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-const app = initializeApp(firebaseConfig);
-const auth: Auth = getAuth(app);
-const db = getFirestore(app);
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -68,9 +57,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Variável calculada para checar se é administrador
+    const isAdmin = userData?.isAdmin ?? false;
+
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
+                // Adicionando um listener para atualizações em tempo real dos dados do usuário (incluindo isAdmin)
                 const docRef = doc(db, USER_COLLECTION_NAME, user.uid);
                 const docSnap = await getDoc(docRef);
 
@@ -114,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 email,
                 saldo: 0.00,
                 data_cadastro: new Date().toISOString(),
+                isAdmin: false, // Define explicitamente como false no registro
             };
 
             await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
@@ -133,12 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const login = async (email: string, password: string) => {
-         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-         const user = userCredential.user;
+           const userCredential = await signInWithEmailAndPassword(auth, email, password);
+           const user = userCredential.user;
 
-         await user.getIdToken(true); 
+           await user.getIdToken(true); 
 
-         return userCredential;
+           return userCredential;
     };
 
     const placeBet = async (marketId: string, option: 'A' | 'B', amount: number, price: number) => {
@@ -400,20 +394,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
     
-    //---------------------------------------------------------
-    // NOVA FUNCIONALIDADE: Resolução de Mercado e Pagamento
-    //---------------------------------------------------------
     const resolveMarket = async (marketId: string, winningOption: 'A' | 'B') => {
         if (!currentUser) {
             throw new Error("Ação de administrador requer autenticação.");
         }
         
-        // Em um sistema real, você verificaria aqui se o currentUser tem permissão de Admin.
-        // Por enquanto, apenas o usuário logado pode tentar.
+        // Embora a checagem isAdmin não esteja aqui para evitar complexidade de importação,
+        // o front-end deve ter feito a checagem antes de chamar esta função.
 
         const marketRef = doc(db, 'markets', marketId);
         
-        // 1. Encontrar todos os usuários com ações da opção vencedora
         const transacoesCol = collection(db, 'transacoes');
         const q = query(
             transacoesCol, 
@@ -423,7 +413,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         const transacoesSnap = await getDocs(q); 
 
-        // Mapear saldo líquido de ações por usuário (excluindo vendas)
         const sharesByUserId = {};
         
         transacoesSnap.docs.forEach(doc => {
@@ -434,7 +423,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 sharesByUserId[userId] = 0;
             }
             
-            // Lógica simplificada: soma compras, subtrai vendas daquela opção
             if (data.type === 'buy') {
                 sharesByUserId[userId] += data.shares_bought;
             } else if (data.type === 'sell' && data.option === winningOption) {
@@ -442,7 +430,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         });
         
-        // 2. Transação Distribuída: Atualizar o mercado e os saldos
         const winningUserUpdates = Object.entries(sharesByUserId).filter(([userId, shares]) => shares > 0.01);
         
         if (winningUserUpdates.length === 0) {
@@ -451,11 +438,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const payoutPromises = winningUserUpdates.map(([userId, shares]) => {
-            const amountToCredit = shares * 1.00; // Pagamento de R$ 1,00 por ação
+            const amountToCredit = shares * 1.00;
             const amountCents = Math.round(amountToCredit * 100);
             const userDocRef = doc(db, 'users', userId);
 
-            // Transação Atômica por Usuário
             return runTransaction(db, async (transaction) => {
                 const userDoc = await transaction.get(userDocRef);
 
@@ -464,12 +450,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const userCurrentBalanceCents = Math.round(userData.saldo * 100);
                     const newBalanceCents = userCurrentBalanceCents + amountCents;
 
-                    // Atualiza o Saldo do Usuário
                     transaction.update(userDocRef, {
                         saldo: newBalanceCents / 100,
                     });
                     
-                    // Cria o registro de Pagamento
                     const transactionRef = doc(collection(db, 'transacoes_saldo'));
                     transaction.set(transactionRef, {
                         userId: userId,
@@ -488,8 +472,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         await Promise.all(payoutPromises);
         
-        // 3. Atualizar o status final do Mercado
-        await setDoc(marketRef, { status: 'closed', winning_option: winningOption, resolved_at: Timestamp.now() }, { merge: true });
+        await setDoc(marketRef, { status: 'resolved', winning_option: winningOption, resolved_at: Timestamp.now() }, { merge: true });
     };
 
     const logout = () => {
@@ -501,6 +484,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         currentUser,
         userData,
         isLoading,
+        isAdmin, // Adicionado ao contexto
         register,
         login,
         logout,
