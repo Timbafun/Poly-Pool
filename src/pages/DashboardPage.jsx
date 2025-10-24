@@ -1,6 +1,8 @@
 import React from 'react';
 import { useAuth } from '../components/AuthManager';
 
+export const dynamic = 'force-dynamic'; 
+
 const styles = {
     container: { maxWidth: '800px', margin: '50px auto', padding: '20px', backgroundColor: '#e9f7ef', border: '1px solid #28a745', borderRadius: '8px', fontFamily: 'Arial, sans-serif' },
     header: { color: '#007bff' },
