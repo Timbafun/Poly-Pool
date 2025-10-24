@@ -1,8 +1,8 @@
-import { AuthProvider } from './components/AuthManager'; // O AuthManager é agora um TSX
-import './app/globals.css'; 
+import { AuthProvider } from '../components/AuthManager'; // Corrigido: '../components'
+import '../app/globals.css'; // Corrigido: '../app/globals.css'
 
 function MyApp({ Component, pageProps }) {
-  // O componente <Component> é a sua página (/login, /dashboard)
+  // Envolve todas as páginas do Pages Router (/login e /dashboard) com o AuthProvider.
   return (
     <AuthProvider>
       <Component {...pageProps} />
