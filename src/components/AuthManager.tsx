@@ -65,6 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
                 const docRef = doc(db, USER_COLLECTION_NAME, user.uid);
                 const docSnap = await getDoc(docRef);
 
@@ -105,7 +107,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             data_cadastro: new Date().toISOString(),
         };
 
-        // Esta linha irá funcionar após a correção das Regras do Firebase!
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
         
         setUserData(data); 
