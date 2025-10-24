@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../../components/AuthManager';
 import { useRouter } from 'next/router';
 
-function LoginPage() {
+function CadastroPage() {
     const { register, currentUser, login, isLoading } = useAuth();
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -13,7 +13,7 @@ function LoginPage() {
     const [nome, setNome] = useState('');
     const [cpf, setCpf] = useState('');
     const [telefone, setTelefone] = useState('');
-    const [isLoginMode, setIsLoginMode] = useState(true);
+    const [isLoginMode, setIsLoginMode] = useState(false); // MODO CADASTRO
     const [error, setError] = useState('');
 
     if (isLoading) {
@@ -149,4 +149,4 @@ function LoginPage() {
     );
 }
 
-export default LoginPage;
+export default CadastroPage;

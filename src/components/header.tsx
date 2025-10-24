@@ -72,8 +72,8 @@ export function Header() {
                                     Log In
                                 </Button>
                             </Link>
-                            {/* Botão Sign Up - Aponta para /login, mantendo o estilo original */}
-                            <Link href="/login" passHref>
+                            {/* Botão Sign Up - APONTA AGORA PARA /cadastro */}
+                            <Link href="/cadastro" passHref>
                                 <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                                     Sign Up
                                 </Button>
