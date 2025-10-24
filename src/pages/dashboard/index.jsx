@@ -1,7 +1,12 @@
 "use client";
 
-import React from 'react';
-import { useAuth } from '../components/AuthManager';
+import React, { useEffect } from 'react';
+import { useAuth } from '../../components/AuthManager';
+import { useRouter } from 'next/router';
+
+// Configurações agressivas do Next.js para forçar a renderização no lado do cliente
+export const dynamic = 'force-dynamic';
+export const revalidate = 0; 
 
 const styles = {
     container: { maxWidth: '800px', margin: '50px auto', padding: '20px', backgroundColor: '#e9f7ef', border: '1px solid #28a745', borderRadius: '8px', fontFamily: 'Arial, sans-serif' },
@@ -13,9 +18,21 @@ const styles = {
 };
 
 function DashboardPage() {
-    const { currentUser, userData, logout } = useAuth();
+    const { currentUser, userData, logout, isLoading } = useAuth();
+    const router = useRouter();
 
-    if (!currentUser || !userData) {
+    // Lógica de proteção de rota: redireciona para a raiz se não estiver logado
+    useEffect(() => {
+        if (!isLoading && !currentUser) {
+            router.replace('/'); 
+        }
+    }, [isLoading, currentUser, router]);
+
+    if (isLoading || !currentUser) {
+        return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2em' }}>Verificando autenticação...</div>;
+    }
+
+    if (!userData) {
         return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2em' }}>Carregando dados do usuário...</div>;
     }
 
