@@ -8,10 +8,32 @@ import {
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
+    User as FirebaseUser,
+    Auth,
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
-// 1. Configuração do Firebase (Substitua pelos seus dados)
+// Definições de Tipos (TypeScript)
+interface UserData {
+    nome_completo: string;
+    cpf: string;
+    telefone: string;
+    email: string;
+    saldo: number;
+    data_cadastro: string;
+    [key: string]: any;
+}
+
+interface AuthContextType {
+    currentUser: FirebaseUser | null;
+    userData: UserData | null;
+    isLoading: boolean;
+    register: (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<any>;
+    logout: () => Promise<void>;
+}
+
+// 1. Configuração do Firebase
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -23,34 +45,40 @@ const firebaseConfig = {
 
 // Inicializar
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+const auth: Auth = getAuth(app);
 const db = getFirestore(app);
 
-const AuthContext = createContext(null);
+// Inicialização do Contexto
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function useAuth() {
-    return useContext(AuthContext);
+    const context = useContext(AuthContext);
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
+    return context;
 }
 
-export function AuthProvider({ children }) {
-    const [currentUser, setCurrentUser] = useState(null);
-    const [userData, setUserData] = useState(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+    const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
+    const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchData = useCallback(async (user) => {
+    const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
                 const docRef = doc(db, 'usuarios', user.uid);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    setUserData(docSnap.data());
+                    setUserData(docSnap.data() as UserData);
                 } else {
-                    setUserData({}); 
+                    // Dados iniciais se o Firestore não os tiver (não deve acontecer após o registro)
+                    setUserData({ nome_completo: 'Novo Usuário', cpf: '', telefone: '', email: user.email || '', saldo: 0.00, data_cadastro: new Date().toISOString() });
                 }
             } catch (error) {
                 console.error("Erro ao buscar dados do usuário:", error);
-                setUserData({});
+                setUserData(null);
             }
         } else {
             setUserData(null);
@@ -67,16 +95,16 @@ export function AuthProvider({ children }) {
         return unsubscribe;
     }, [fetchData]);
 
-    const register = async (email, password, nome_completo, cpf, telefone) => {
+    const register = async (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        const data = {
+        const data: UserData = {
             nome_completo,
             cpf,
             telefone,
             email,
-            saldo: 0.00, 
+            saldo: 0.00,
             data_cadastro: new Date().toISOString(),
         };
 
@@ -84,7 +112,7 @@ export function AuthProvider({ children }) {
         setUserData(data);
     };
 
-    const login = (email, password) => {
+    const login = (email: string, password: string) => {
         return signInWithEmailAndPassword(auth, email, password);
     };
 
@@ -93,7 +121,7 @@ export function AuthProvider({ children }) {
         return signOut(auth);
     };
 
-    const value = {
+    const value: AuthContextType = {
         currentUser,
         userData,
         isLoading,
