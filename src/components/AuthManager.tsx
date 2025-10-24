@@ -13,6 +13,8 @@ import {
     UserCredential,
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore';
+// Importação do useRouter para forçar redirecionamento após cadastro
+import { useRouter } from 'next/router';
 
 const USER_COLLECTION_NAME = 'users';
 
@@ -61,11 +63,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter(); // Inicializa o router
 
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
-                // Mantém o pequeno delay para garantir que o token esteja pronto para a leitura
                 await new Promise(resolve => setTimeout(resolve, 300));
                 
                 const docRef = doc(db, USER_COLLECTION_NAME, user.uid);
@@ -98,7 +100,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const register = async (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => {
         let user: FirebaseUser;
         try {
-            // 1. Cria o usuário no Firebase Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             user = userCredential.user;
 
@@ -111,23 +112,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 data_cadastro: new Date().toISOString(),
             };
 
-            // 2. Tenta Gravar no Firestore com delay
             await new Promise(resolve => setTimeout(resolve, 500));
             await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
             
-            // 3. Sucesso: Atualiza o estado local
+            // Sucesso na gravação:
             setUserData(data); 
 
+            // FORÇA O REDIRECIONAMENTO PARA O DASHBOARD
+            router.replace('/dashboard');
+
         } catch (error) {
-            // Se o erro for de 'já cadastrado', a exceção é tratada pelo componente de Cadastro
-            // Se o erro for no setDoc, ele será capturado aqui
             console.error("Erro completo durante o registro ou setDoc:", error);
             throw error;
         }
     };
 
-    const login = (email: string, password: string) => {
-        return signInWithEmailAndPassword(auth, email, password);
+    const login = async (email: string, password: string) => {
+         const userCredential = await signInWithEmailAndPassword(auth, email, password);
+         // Após o login, o onAuthStateChanged fará a busca. Redirecionar aqui é opcional.
+         return userCredential;
     };
 
     const logout = () => {
