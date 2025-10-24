@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
+                // Mantém o pequeno delay para garantir que o token esteja pronto para a leitura
                 await new Promise(resolve => setTimeout(resolve, 300));
                 
                 const docRef = doc(db, USER_COLLECTION_NAME, user.uid);
@@ -95,23 +96,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [fetchData]);
 
     const register = async (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+        let user: FirebaseUser;
+        try {
+            // 1. Cria o usuário no Firebase Auth
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            user = userCredential.user;
 
-        const data: UserData = {
-            nome_completo,
-            cpf,
-            telefone,
-            email,
-            saldo: 0.00,
-            data_cadastro: new Date().toISOString(),
-        };
+            const data: UserData = {
+                nome_completo,
+                cpf,
+                telefone,
+                email,
+                saldo: 0.00,
+                data_cadastro: new Date().toISOString(),
+            };
 
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
-        
-        setUserData(data); 
+            // 2. Tenta Gravar no Firestore com delay
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
+            
+            // 3. Sucesso: Atualiza o estado local
+            setUserData(data); 
+
+        } catch (error) {
+            // Se o erro for de 'já cadastrado', a exceção é tratada pelo componente de Cadastro
+            // Se o erro for no setDoc, ele será capturado aqui
+            console.error("Erro completo durante o registro ou setDoc:", error);
+            throw error;
+        }
     };
 
     const login = (email: string, password: string) => {
