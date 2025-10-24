@@ -66,8 +66,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
-                // Removemos o delay, já que a renovação do token fará o trabalho
-                
                 const docRef = doc(db, USER_COLLECTION_NAME, user.uid);
                 const docSnap = await getDoc(docRef);
 
@@ -75,9 +73,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUserData(docSnap.data() as UserData);
                 } else {
                     setUserData(null);
+                    console.warn(`Dados de usuário não encontrados para o UID: ${user.uid}.`);
                 }
             } catch (error) {
-                console.error("Erro ao buscar dados do usuário:", error);
+                console.error("Erro CRÍTICO ao buscar dados do usuário (Permissão/Token):", error);
                 setUserData(null);
             }
         } else {
@@ -88,7 +87,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             setCurrentUser(user);
-            await fetchData(user);
+            if (user) {
+                await fetchData(user);
+            }
             setIsLoading(false);
         });
 
@@ -101,7 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             user = userCredential.user;
 
-            // NOVA CORREÇÃO: Força a obtenção do token mais recente antes de escrever.
             await user.getIdToken(true); 
 
             const data: UserData = {
@@ -119,11 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setCurrentUser(user);
 
         } catch (error) {
-            console.error("Erro completo durante o setDoc no Firestore:", error);
+            console.error("Erro CRÍTICO durante o registro (setDoc falhou):", error);
             if (user) {
                 try {
                     await deleteUser(user);
-                    console.warn("Usuário Auth deletado devido à falha na gravação do Firestore.");
                 } catch (deleteError) {
                     console.error("Erro ao deletar usuário após falha do Firestore:", deleteError);
                 }
@@ -136,7 +135,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
          const userCredential = await signInWithEmailAndPassword(auth, email, password);
          const user = userCredential.user;
 
-         // NOVA CORREÇÃO: Força a obtenção do token mais recente após o login.
          await user.getIdToken(true); 
 
          return userCredential;

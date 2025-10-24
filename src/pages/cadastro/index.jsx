@@ -13,7 +13,7 @@ function CadastroPage() {
     const [nome, setNome] = useState('');
     const [cpf, setCpf] = useState('');
     const [telefone, setTelefone] = useState('');
-    const [isLoginMode, setIsLoginMode] = useState(false); // MODO CADASTRO
+    const [isLoginMode, setIsLoginMode] = useState(false);
     const [error, setError] = useState('');
 
     if (isLoading) {
@@ -21,7 +21,7 @@ function CadastroPage() {
     }
     
     if (currentUser) {
-        router.push('/');
+        router.push('/dashboard');
         return null;
     }
 
@@ -35,7 +35,7 @@ function CadastroPage() {
         try {
             if (isLoginMode) {
                 await login(email, password);
-                router.push('/');
+                router.push('/dashboard');
             } else {
                 if (password.length < 6) {
                     setError('A senha deve ter no mínimo 6 caracteres.');
@@ -47,7 +47,7 @@ function CadastroPage() {
                 }
                 
                 await register(email, password, nome, cpf, telefone);
-                router.push('/');
+                router.push('/dashboard');
             }
         } catch (err) {
             let errorMessage = 'Ocorreu um erro. Verifique seus dados.';
