@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../../components/AuthManager';
 import { useRouter } from 'next/router';
-import { Header } from '../../components/header'; // Importação do componente Header
+import { Header } from '../../components/header';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; 
@@ -32,7 +32,7 @@ function DashboardPage() {
 
     return (
         <>
-            <Header /> {/* Componente Header adicionado aqui */}
+            <Header />
             <div className="max-w-[800px] mx-auto my-12 p-8 rounded-xl shadow-2xl bg-[var(--card)] text-[var(--card-foreground)] border border-[var(--border)]">
                 <h1 className="text-3xl font-bold mb-6 text-[var(--primary-foreground)]">Dashboard PoolPoly</h1>
                 <p className="mb-4 text-[var(--foreground)]">Bem-vindo(a), **{userData.nome_completo || 'Usuário'}**!</p>

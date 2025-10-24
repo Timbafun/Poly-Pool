@@ -14,10 +14,8 @@ import {
 } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore';
 
-// --- COLEÇÃO CORRIGIDA PARA INGLÊS ---
 const USER_COLLECTION_NAME = 'users';
 
-// Definições de Tipos (Simplificadas para funcionar com o JSX e evitar erros de tipagem complexos)
 interface UserData extends DocumentData {
     nome_completo: string;
     cpf: string;
@@ -36,7 +34,6 @@ interface AuthContextType {
     logout: () => Promise<void>;
 }
 
-// 1. Configuração do Firebase
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -46,12 +43,10 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Inicializar
 const app = initializeApp(firebaseConfig);
 const auth: Auth = getAuth(app);
 const db = getFirestore(app);
 
-// Inicialização do Contexto
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function useAuth() {
@@ -70,7 +65,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
-                // CORREÇÃO: Usando USER_COLLECTION_NAME (users)
                 const docRef = doc(db, USER_COLLECTION_NAME, user.uid);
                 const docSnap = await getDoc(docRef);
 
@@ -111,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             data_cadastro: new Date().toISOString(),
         };
 
-        // CORREÇÃO: Usando USER_COLLECTION_NAME (users)
+        // Esta linha irá funcionar após a correção das Regras do Firebase!
         await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
         
         setUserData(data); 
