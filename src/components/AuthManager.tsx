@@ -10,12 +10,14 @@ import {
     onAuthStateChanged,
     User as FirebaseUser,
     Auth,
-    UserCredential, // Importação adicionada para tipagem de login
+    UserCredential,
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore'; // Importação DocumentData
+import { getFirestore, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore';
 
-// Definições de Tipos (TypeScript)
-// Substituímos [key: string]: any; por [key: string]: unknown; para satisfazer o linter
+// --- COLEÇÃO CORRIGIDA PARA INGLÊS ---
+const USER_COLLECTION_NAME = 'users';
+
+// Definições de Tipos (Simplificadas para funcionar com o JSX e evitar erros de tipagem complexos)
 interface UserData extends DocumentData {
     nome_completo: string;
     cpf: string;
@@ -30,7 +32,7 @@ interface AuthContextType {
     userData: UserData | null;
     isLoading: boolean;
     register: (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => Promise<void>;
-    login: (email: string, password: string) => Promise<UserCredential>; // Tipo de retorno corrigido
+    login: (email: string, password: string) => Promise<UserCredential>;
     logout: () => Promise<void>;
 }
 
@@ -68,7 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
-                const docRef = doc(db, 'usuarios', user.uid);
+                // CORREÇÃO: Usando USER_COLLECTION_NAME (users)
+                const docRef = doc(db, USER_COLLECTION_NAME, user.uid);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
@@ -108,8 +111,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             data_cadastro: new Date().toISOString(),
         };
 
-        await setDoc(doc(db, 'usuarios', user.uid), data);
-        setUserData(data);
+        // CORREÇÃO: Usando USER_COLLECTION_NAME (users)
+        await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
+        
+        setUserData(data); 
     };
 
     const login = (email: string, password: string) => {
