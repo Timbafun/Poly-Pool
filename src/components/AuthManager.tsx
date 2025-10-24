@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const fetchData = useCallback(async (user: FirebaseUser | null) => {
         if (user) {
             try {
-                await new Promise(resolve => setTimeout(resolve, 300));
+                // Removemos o delay, já que a renovação do token fará o trabalho
                 
                 const docRef = doc(db, USER_COLLECTION_NAME, user.uid);
                 const docSnap = await getDoc(docRef);
@@ -101,6 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             user = userCredential.user;
 
+            // NOVA CORREÇÃO: Força a obtenção do token mais recente antes de escrever.
+            await user.getIdToken(true); 
+
             const data: UserData = {
                 nome_completo,
                 cpf,
@@ -110,7 +113,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 data_cadastro: new Date().toISOString(),
             };
 
-            await new Promise(resolve => setTimeout(resolve, 500));
             await setDoc(doc(db, USER_COLLECTION_NAME, user.uid), data);
             
             setUserData(data); 
@@ -131,7 +133,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const login = async (email: string, password: string) => {
-         return signInWithEmailAndPassword(auth, email, password);
+         const userCredential = await signInWithEmailAndPassword(auth, email, password);
+         const user = userCredential.user;
+
+         // NOVA CORREÇÃO: Força a obtenção do token mais recente após o login.
+         await user.getIdToken(true); 
+
+         return userCredential;
     };
 
     const logout = () => {
