@@ -10,18 +10,19 @@ import {
     onAuthStateChanged,
     User as FirebaseUser,
     Auth,
+    UserCredential, // Importação adicionada para tipagem de login
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore'; // Importação DocumentData
 
 // Definições de Tipos (TypeScript)
-interface UserData {
+// Substituímos [key: string]: any; por [key: string]: unknown; para satisfazer o linter
+interface UserData extends DocumentData {
     nome_completo: string;
     cpf: string;
     telefone: string;
     email: string;
     saldo: number;
     data_cadastro: string;
-    [key: string]: any;
 }
 
 interface AuthContextType {
@@ -29,7 +30,7 @@ interface AuthContextType {
     userData: UserData | null;
     isLoading: boolean;
     register: (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => Promise<void>;
-    login: (email: string, password: string) => Promise<any>;
+    login: (email: string, password: string) => Promise<UserCredential>; // Tipo de retorno corrigido
     logout: () => Promise<void>;
 }
 
@@ -73,8 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (docSnap.exists()) {
                     setUserData(docSnap.data() as UserData);
                 } else {
-                    // Dados iniciais se o Firestore não os tiver (não deve acontecer após o registro)
-                    setUserData({ nome_completo: 'Novo Usuário', cpf: '', telefone: '', email: user.email || '', saldo: 0.00, data_cadastro: new Date().toISOString() });
+                    setUserData(null);
                 }
             } catch (error) {
                 console.error("Erro ao buscar dados do usuário:", error);
