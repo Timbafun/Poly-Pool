@@ -4,36 +4,25 @@ import React, { useEffect } from 'react';
 import { useAuth } from '../../components/AuthManager';
 import { useRouter } from 'next/router';
 
-// Configurações agressivas do Next.js para forçar a renderização no lado do cliente
 export const dynamic = 'force-dynamic';
 export const revalidate = 0; 
-
-const styles = {
-    container: { maxWidth: '800px', margin: '50px auto', padding: '20px', backgroundColor: '#e9f7ef', border: '1px solid #28a745', borderRadius: '8px', fontFamily: 'Arial, sans-serif' },
-    header: { color: '#007bff' },
-    infoBox: { backgroundColor: '#ffffff', padding: '15px', border: '1px solid #dee2e6', marginBottom: '20px', borderRadius: '6px' },
-    balanceBox: { backgroundColor: '#d4edda', padding: '20px', border: '1px solid #c3e6cb', borderRadius: '6px', marginBottom: '20px', textAlign: 'center' },
-    balanceText: { fontSize: '2.5em', margin: '5px 0', color: '#155724' },
-    button: { padding: '10px 20px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }
-};
 
 function DashboardPage() {
     const { currentUser, userData, logout, isLoading } = useAuth();
     const router = useRouter();
 
-    // Lógica de proteção de rota: redireciona para a raiz se não estiver logado
     useEffect(() => {
         if (!isLoading && !currentUser) {
-            router.replace('/'); 
+            router.replace('/login'); 
         }
     }, [isLoading, currentUser, router]);
 
     if (isLoading || !currentUser) {
-        return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2em' }}>Verificando autenticação...</div>;
+        return <div className="text-center p-12 text-lg text-[var(--primary-foreground)]">Verificando autenticação...</div>;
     }
 
     if (!userData) {
-        return <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.2em' }}>Carregando dados do usuário...</div>;
+        return <div className="text-center p-12 text-lg text-[var(--primary-foreground)]">Carregando dados do usuário...</div>;
     }
 
     const saldoFormatado = userData.saldo !== undefined 
@@ -41,24 +30,27 @@ function DashboardPage() {
         : 'R$ 0,00';
 
     return (
-        <div style={styles.container}>
-            <h1 style={styles.header}>Dashboard PoolPoly</h1>
-            <p>Bem-vindo(a), **{userData.nome_completo || 'Usuário'}**!</p>
+        <div className="max-w-[800px] mx-auto my-12 p-8 rounded-xl shadow-2xl bg-[var(--card)] text-[var(--card-foreground)] border border-[var(--border)]">
+            <h1 className="text-3xl font-bold mb-6 text-[var(--primary-foreground)]">Dashboard PoolPoly</h1>
+            <p className="mb-4 text-[var(--foreground)]">Bem-vindo(a), **{userData.nome_completo || 'Usuário'}**!</p>
 
-            <div style={styles.balanceBox}>
-                <h3>Seu Saldo Atual</h3>
-                <p style={styles.balanceText}>{saldoFormatado}</p>
+            <div className="p-6 mb-6 rounded-lg text-center bg-[var(--secondary)] border border-[var(--border)]">
+                <h3 className="text-xl font-semibold text-[var(--foreground)]">Seu Saldo Atual</h3>
+                <p className="text-4xl font-extrabold mt-2 text-[var(--chart-1)]">
+                    {saldoFormatado}
+                </p>
             </div>
 
-            <div style={styles.infoBox}>
-                <h3>Detalhes da Conta</h3>
-                <p><strong>E-mail:</strong> {currentUser.email}</p>
-                <p><strong>CPF:</strong> {userData.cpf || 'Não informado'}</p>
-                <p><strong>Telefone:</strong> {userData.telefone || 'Não informado'}</p>
-                <p><strong>Status:</strong> Ativa</p>
+            <div className="p-4 mb-8 rounded-lg bg-[var(--popover)] border border-[var(--border)] text-[var(--popover-foreground)]">
+                <h3 className="text-xl font-semibold mb-3 border-b border-[var(--border)] pb-2 text-[var(--primary)]">Detalhes da Conta</h3>
+                <p className="mb-2"><strong>E-mail:</strong> {currentUser.email}</p>
+                <p className="mb-2"><strong>CPF:</strong> {userData.cpf || 'Não informado'}</p>
+                <p className="mb-2"><strong>Telefone:</strong> {userData.telefone || 'Não informado'}</p>
+                <p><strong>Status:</strong> <span className="text-green-500 font-medium">Ativa</span></p>
             </div>
 
-            <button onClick={logout} style={styles.button}>
+            <button onClick={logout} 
+                    className="w-full p-3 rounded-md bg-[var(--destructive)] text-[var(--destructive-foreground)] font-bold hover:opacity-90 transition-opacity">
                 Sair da Conta (Logout)
             </button>
         </div>
