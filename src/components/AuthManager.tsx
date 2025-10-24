@@ -13,7 +13,7 @@ import {
     Auth,
     UserCredential,
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, DocumentData, runTransaction, collection, Timestamp } from 'firebase/firestore';
 
 const USER_COLLECTION_NAME = 'users';
 
@@ -33,6 +33,7 @@ interface AuthContextType {
     register: (email: string, password: string, nome_completo: string, cpf: string, telefone: string) => Promise<void>;
     login: (email: string, password: string) => Promise<UserCredential>;
     logout: () => Promise<void>;
+    placeBet: (marketId: string, option: 'A' | 'B', amount: number, price: number) => Promise<void>;
 }
 
 const firebaseConfig = {
@@ -140,6 +141,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
          return userCredential;
     };
 
+    const placeBet = async (marketId: string, option: 'A' | 'B', amount: number, price: number) => {
+        if (!currentUser || !userData) {
+            throw new Error("Usuário não autenticado ou dados ausentes.");
+        }
+        
+        const amountCents = Math.round(amount * 100);
+
+        const marketRef = doc(db, 'markets', marketId);
+        const userRef = doc(db, 'users', currentUser.uid);
+        
+        try {
+            await runTransaction(db, async (transaction) => {
+                const marketDoc = await transaction.get(marketRef);
+                const userDoc = await transaction.get(userRef);
+
+                if (!marketDoc.exists()) {
+                    throw new Error("Mercado não encontrado.");
+                }
+
+                if (!userDoc.exists()) {
+                    throw new Error("Dados do usuário não encontrados.");
+                }
+
+                const marketData = marketDoc.data();
+                const userData = userDoc.data();
+                const userCurrentBalanceCents = Math.round(userData.saldo * 100);
+
+                if (userCurrentBalanceCents < amountCents) {
+                    throw new Error("Saldo insuficiente para esta aposta.");
+                }
+                
+                const amountShares = amount / price; 
+                
+                let newPoolA = marketData.pool_A;
+                let newPoolB = marketData.pool_B;
+                
+                if (option === 'A') {
+                    newPoolA += amount; 
+                } else if (option === 'B') {
+                    newPoolB += amount; 
+                } else {
+                    throw new Error("Opção de aposta inválida.");
+                }
+                
+                const newTotalVolume = marketData.total_volume + amount;
+                const newBalanceCents = userCurrentBalanceCents - amountCents;
+                
+                transaction.update(marketRef, {
+                    pool_A: newPoolA,
+                    pool_B: newPoolB,
+                    total_volume: newTotalVolume,
+                });
+
+                transaction.update(userRef, {
+                    saldo: newBalanceCents / 100,
+                });
+                
+                const transactionRef = doc(collection(db, 'transacoes'));
+                transaction.set(transactionRef, {
+                    userId: currentUser.uid,
+                    marketId: marketId,
+                    option: option,
+                    amount_invested: amount,
+                    shares_bought: amountShares,
+                    price_at_purchase: price,
+                    date: Timestamp.now(),
+                    type: 'buy',
+                });
+            });
+
+            await fetchData(currentUser); 
+            
+        } catch (error) {
+            throw error;
+        }
+    };
+
     const logout = () => {
         setUserData(null);
         return signOut(auth);
@@ -152,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         login,
         logout,
+        placeBet,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

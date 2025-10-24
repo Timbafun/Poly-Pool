@@ -1,88 +1,99 @@
-import { Button } from "@/components/ui/button";
-import { RepeatIcon, Share2, Bookmark } from "lucide-react";
-import { cn } from "@/lib/utils";
+"use client";
 
-interface MarketOption {
-  label: string;
-  percentage: number;
-  variant?: "small";
-}
+import React, { useState } from 'react';
+import BuyModal from '../BuyModal'; 
+import { useAuth } from '../AuthManager'; 
 
-interface MarketCardProps {
-  title: string;
-  icon: string;
-  volume: string;
-  options: MarketOption[];
-}
+function MarketCard({ market }) {
+    const { userData } = useAuth();
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedOption, setSelectedOption] = useState(null); 
+    const [selectedPrice, setSelectedPrice] = useState(0); 
 
-export function MarketCard({ title, icon, volume, options }: MarketCardProps) {
-  return (
-    <div className="bg-[#2c3e50] rounded-xl p-4 hover:bg-[#334155] transition-colors cursor-pointer border border-[#3d5266]">
-      {/* Header */}
-      <div className="flex items-start gap-3 mb-4">
-        <div className="text-3xl">{icon}</div>
-        <h3 className="text-white font-medium text-sm flex-1 leading-tight">{title}</h3>
-      </div>
+    const isMarketOpen = market.status === 'open';
 
-      {/* Options */}
-      <div className="space-y-2 mb-4">
-        {options.map((option, idx) => (
-          <div key={idx} className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 flex-1">
-              <span className="text-gray-300">{option.label}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-white font-semibold">{option.percentage}%</span>
-              <Button
-                size="sm"
-                className={cn(
-                  "h-6 px-3 text-xs",
-                  option.percentage > 50
-                    ? "bg-green-700/80 hover:bg-green-700 text-white"
-                    : "bg-gray-600/50 hover:bg-gray-600 text-gray-300"
+    const getPriceColor = (percentage) => {
+        if (percentage >= 70) return 'bg-green-600';
+        if (percentage >= 50) return 'bg-yellow-600';
+        return 'bg-red-600';
+    };
+    
+    const formatVolume = (volume) => `R$ ${volume.toFixed(2).replace('.', ',')}`;
+
+    const handleBuyClick = (option, price) => {
+        if (!isMarketOpen) return;
+        
+        setSelectedOption(option);
+        setSelectedPrice(price);
+        setIsModalOpen(true);
+    };
+
+    const currentBalance = userData?.saldo || 0;
+
+    return (
+        <>
+            <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 p-4 flex flex-col">
+                
+                <h3 className="text-lg font-semibold text-[var(--primary)] mb-3 leading-snug">
+                    {market.title}
+                </h3>
+
+                <div className="flex justify-between items-end mb-4 text-sm">
+                    <div className="text-[var(--foreground)] opacity-70">
+                        Volume Total: {formatVolume(market.total_volume)}
+                    </div>
+                    <div className="text-[var(--muted-foreground)]">
+                        Encerra: {new Date(market.resolution_date).toLocaleDateString('pt-BR')}
+                    </div>
+                </div>
+
+                <div className="space-y-3">
+                    
+                    <div className="flex items-center space-x-2">
+                        <button 
+                            onClick={() => handleBuyClick('A', market.price_A)}
+                            className={`flex-grow p-3 rounded-lg text-[var(--card-foreground)] font-bold text-left ${getPriceColor(market.percentage_A)} transition-colors`}
+                            disabled={!isMarketOpen}
+                        >
+                            {market.option_A} 
+                        </button>
+                        <div className="w-16 text-right font-extrabold text-xl text-[var(--primary-foreground)]">
+                            {market.percentage_A}%
+                        </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                        <button 
+                            onClick={() => handleBuyClick('B', market.price_B)}
+                            className={`flex-grow p-3 rounded-lg text-[var(--card-foreground)] font-bold text-left ${getPriceColor(market.percentage_B)} transition-colors`}
+                            disabled={!isMarketOpen}
+                        >
+                            {market.option_B} 
+                        </button>
+                        <div className="w-16 text-right font-extrabold text-xl text-[var(--primary-foreground)]">
+                            {market.percentage_B}%
+                        </div>
+                    </div>
+                </div>
+                
+                {!isMarketOpen && (
+                    <div className="mt-4 text-center text-sm font-medium text-[var(--muted-foreground)]">
+                        Mercado Fechado
+                    </div>
                 )}
-              >
-                Yes
-              </Button>
-              <Button
-                size="sm"
-                className={cn(
-                  "h-6 px-3 text-xs",
-                  option.percentage < 50
-                    ? "bg-red-700/80 hover:bg-red-700 text-white"
-                    : "bg-gray-600/50 hover:bg-gray-600 text-gray-300"
-                )}
-              >
-                No
-              </Button>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between pt-3 border-t border-[#3d5266]">
-        <span className="text-xs text-gray-400 flex items-center gap-1">
-          {volume}
-          <RepeatIcon className="h-3 w-3" />
-        </span>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-gray-400 hover:text-white hover:bg-[#3d5266]"
-          >
-            <Share2 className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-gray-400 hover:text-white hover:bg-[#3d5266]"
-          >
-            <Bookmark className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
+            
+            {isModalOpen && selectedOption && (
+                <BuyModal 
+                    market={market}
+                    option={selectedOption}
+                    price={selectedPrice}
+                    currentBalance={currentBalance}
+                    onClose={() => setIsModalOpen(false)}
+                />
+            )}
+        </>
+    );
 }
+
+export default MarketCard;
