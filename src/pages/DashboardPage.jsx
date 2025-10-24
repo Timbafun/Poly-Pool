@@ -1,8 +1,7 @@
+"use client";
+
 import React from 'react';
 import { useAuth } from '../components/AuthManager';
-
-// A PLACA MÁGICA: Esta linha garante que o componente rode APENAS no navegador
-"use client";
 
 const styles = {
     container: { maxWidth: '800px', margin: '50px auto', padding: '20px', backgroundColor: '#e9f7ef', border: '1px solid #28a745', borderRadius: '8px', fontFamily: 'Arial, sans-serif' },

@@ -1,8 +1,8 @@
+"use client";
+
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from './AuthManager';
-
-"use client";
 
 function ProtectedRoute({ element: Element, ...rest }) {
     const { currentUser, isLoading } = useAuth();
