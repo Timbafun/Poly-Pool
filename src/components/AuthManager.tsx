@@ -13,7 +13,7 @@ import {
     Auth,
     UserCredential,
 } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, DocumentData, runTransaction, collection, Timestamp } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, DocumentData, runTransaction, collection, Timestamp, query, where, getDocs, QuerySnapshot } from 'firebase/firestore';
 
 const USER_COLLECTION_NAME = 'users';
 
@@ -34,6 +34,10 @@ interface AuthContextType {
     login: (email: string, password: string) => Promise<UserCredential>;
     logout: () => Promise<void>;
     placeBet: (marketId: string, option: 'A' | 'B', amount: number, price: number) => Promise<void>;
+    sellBet: (marketId: string, option: 'A' | 'B', shares: number, price: number) => Promise<void>;
+    deposit: (amount: number) => Promise<void>;
+    withdraw: (amount: number) => Promise<void>;
+    resolveMarket: (marketId: string, winningOption: 'A' | 'B') => Promise<void>;
 }
 
 const firebaseConfig = {
@@ -74,10 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     setUserData(docSnap.data() as UserData);
                 } else {
                     setUserData(null);
-                    console.warn(`Dados de usuário não encontrados para o UID: ${user.uid}.`);
                 }
             } catch (error) {
-                console.error("Erro CRÍTICO ao buscar dados do usuário (Permissão/Token):", error);
                 setUserData(null);
             }
         } else {
@@ -120,12 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setCurrentUser(user);
 
         } catch (error) {
-            console.error("Erro CRÍTICO durante o registro (setDoc falhou):", error);
             if (user) {
                 try {
                     await deleteUser(user);
                 } catch (deleteError) {
-                    console.error("Erro ao deletar usuário após falha do Firestore:", deleteError);
                 }
             }
             throw error;
@@ -217,6 +217,280 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             throw error;
         }
     };
+    
+    const sellBet = async (marketId: string, option: 'A' | 'B', sharesToSell: number, price: number) => {
+        if (!currentUser || !userData) {
+            throw new Error("Usuário não autenticado ou dados ausentes.");
+        }
+        
+        const marketRef = doc(db, 'markets', marketId);
+        const userRef = doc(db, 'users', currentUser.uid);
+        
+        try {
+            await runTransaction(db, async (transaction) => {
+                const marketDoc = await transaction.get(marketRef);
+                const userDoc = await transaction.get(userRef);
+
+                if (!marketDoc.exists()) {
+                    throw new Error("Mercado não encontrado.");
+                }
+
+                if (!userDoc.exists()) {
+                    throw new Error("Dados do usuário não encontrados.");
+                }
+
+                const transacoesCol = collection(db, 'transacoes');
+                const q = query(
+                    transacoesCol, 
+                    where('userId', '==', currentUser.uid),
+                    where('marketId', '==', marketId),
+                    where('option', '==', option)
+                );
+                
+                const transacoesSnap = await getDocs(q) as QuerySnapshot<DocumentData>; 
+                
+                let totalShares = 0;
+                transacoesSnap.docs.forEach(doc => {
+                    const data = doc.data();
+                    if (data.type === 'buy') {
+                        totalShares += data.shares_bought;
+                    } else if (data.type === 'sell') {
+                        totalShares -= data.shares_sold;
+                    }
+                });
+                
+                if (sharesToSell > totalShares) {
+                    throw new Error(`Você só possui ${totalShares.toFixed(2)} ações de ${option}.`);
+                }
+                
+                const amountReceived = sharesToSell * price;
+                const amountCents = Math.round(amountReceived * 100);
+                
+                const marketData = marketDoc.data();
+                const userData = userDoc.data();
+                const userCurrentBalanceCents = Math.round(userData.saldo * 100);
+
+                let newPoolA = marketData.pool_A;
+                let newPoolB = marketData.pool_B;
+
+                if (option === 'A') {
+                    newPoolA -= amountReceived;
+                } else if (option === 'B') {
+                    newPoolB -= amountReceived;
+                }
+                
+                if (newPoolA < 0 || newPoolB < 0) {
+                     throw new Error("Erro de liquidez no pool. Tente vender menos.");
+                }
+
+                const newTotalVolume = marketData.total_volume - amountReceived;
+                const newBalanceCents = userCurrentBalanceCents + amountCents;
+                
+                transaction.update(marketRef, {
+                    pool_A: newPoolA,
+                    pool_B: newPoolB,
+                    total_volume: newTotalVolume,
+                });
+
+                transaction.update(userRef, {
+                    saldo: newBalanceCents / 100,
+                });
+                
+                const transactionRef = doc(collection(db, 'transacoes'));
+                transaction.set(transactionRef, {
+                    userId: currentUser.uid,
+                    marketId: marketId,
+                    option: option,
+                    amount_received: amountReceived,
+                    shares_sold: sharesToSell,
+                    price_at_sale: price,
+                    date: Timestamp.now(),
+                    type: 'sell',
+                });
+            });
+
+            await fetchData(currentUser); 
+            
+        } catch (error) {
+            throw error;
+        }
+    };
+    
+    const deposit = async (amount: number) => {
+        if (!currentUser || !userData) {
+            throw new Error("Usuário não autenticado.");
+        }
+        
+        const userRef = doc(db, 'users', currentUser.uid);
+        const amountCents = Math.round(amount * 100);
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                const userDoc = await transaction.get(userRef);
+
+                if (!userDoc.exists()) {
+                    throw new Error("Dados do usuário não encontrados.");
+                }
+
+                const userData = userDoc.data();
+                const userCurrentBalanceCents = Math.round(userData.saldo * 100);
+                
+                const newBalanceCents = userCurrentBalanceCents + amountCents;
+                
+                transaction.update(userRef, {
+                    saldo: newBalanceCents / 100,
+                });
+                
+                const transactionRef = doc(collection(db, 'transacoes_saldo'));
+                transaction.set(transactionRef, {
+                    userId: currentUser.uid,
+                    amount: amount,
+                    date: Timestamp.now(),
+                    type: 'deposit',
+                });
+            });
+
+            await fetchData(currentUser);
+        } catch (error) {
+            throw error;
+        }
+    };
+    
+    const withdraw = async (amount: number) => {
+        if (!currentUser || !userData) {
+            throw new Error("Usuário não autenticado.");
+        }
+        
+        const userRef = doc(db, 'users', currentUser.uid);
+        const amountCents = Math.round(amount * 100);
+
+        try {
+            await runTransaction(db, async (transaction) => {
+                const userDoc = await transaction.get(userRef);
+
+                if (!userDoc.exists()) {
+                    throw new Error("Dados do usuário não encontrados.");
+                }
+
+                const userData = userDoc.data();
+                const userCurrentBalanceCents = Math.round(userData.saldo * 100);
+
+                if (userCurrentBalanceCents < amountCents) {
+                    throw new Error("Saldo insuficiente para este saque.");
+                }
+                
+                const newBalanceCents = userCurrentBalanceCents - amountCents;
+                
+                transaction.update(userRef, {
+                    saldo: newBalanceCents / 100,
+                });
+
+                const transactionRef = doc(collection(db, 'transacoes_saldo'));
+                transaction.set(transactionRef, {
+                    userId: currentUser.uid,
+                    amount: amount,
+                    date: Timestamp.now(),
+                    type: 'withdraw',
+                });
+            });
+
+            await fetchData(currentUser);
+        } catch (error) {
+            throw error;
+        }
+    };
+    
+    //---------------------------------------------------------
+    // NOVA FUNCIONALIDADE: Resolução de Mercado e Pagamento
+    //---------------------------------------------------------
+    const resolveMarket = async (marketId: string, winningOption: 'A' | 'B') => {
+        if (!currentUser) {
+            throw new Error("Ação de administrador requer autenticação.");
+        }
+        
+        // Em um sistema real, você verificaria aqui se o currentUser tem permissão de Admin.
+        // Por enquanto, apenas o usuário logado pode tentar.
+
+        const marketRef = doc(db, 'markets', marketId);
+        
+        // 1. Encontrar todos os usuários com ações da opção vencedora
+        const transacoesCol = collection(db, 'transacoes');
+        const q = query(
+            transacoesCol, 
+            where('marketId', '==', marketId),
+            where('option', '==', winningOption)
+        );
+        
+        const transacoesSnap = await getDocs(q); 
+
+        // Mapear saldo líquido de ações por usuário (excluindo vendas)
+        const sharesByUserId = {};
+        
+        transacoesSnap.docs.forEach(doc => {
+            const data = doc.data();
+            const userId = data.userId;
+
+            if (!sharesByUserId[userId]) {
+                sharesByUserId[userId] = 0;
+            }
+            
+            // Lógica simplificada: soma compras, subtrai vendas daquela opção
+            if (data.type === 'buy') {
+                sharesByUserId[userId] += data.shares_bought;
+            } else if (data.type === 'sell' && data.option === winningOption) {
+                 sharesByUserId[userId] -= data.shares_sold;
+            }
+        });
+        
+        // 2. Transação Distribuída: Atualizar o mercado e os saldos
+        const winningUserUpdates = Object.entries(sharesByUserId).filter(([userId, shares]) => shares > 0.01);
+        
+        if (winningUserUpdates.length === 0) {
+            await setDoc(marketRef, { status: 'closed', winning_option: winningOption, resolved_at: Timestamp.now() }, { merge: true });
+            return; 
+        }
+
+        const payoutPromises = winningUserUpdates.map(([userId, shares]) => {
+            const amountToCredit = shares * 1.00; // Pagamento de R$ 1,00 por ação
+            const amountCents = Math.round(amountToCredit * 100);
+            const userDocRef = doc(db, 'users', userId);
+
+            // Transação Atômica por Usuário
+            return runTransaction(db, async (transaction) => {
+                const userDoc = await transaction.get(userDocRef);
+
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    const userCurrentBalanceCents = Math.round(userData.saldo * 100);
+                    const newBalanceCents = userCurrentBalanceCents + amountCents;
+
+                    // Atualiza o Saldo do Usuário
+                    transaction.update(userDocRef, {
+                        saldo: newBalanceCents / 100,
+                    });
+                    
+                    // Cria o registro de Pagamento
+                    const transactionRef = doc(collection(db, 'transacoes_saldo'));
+                    transaction.set(transactionRef, {
+                        userId: userId,
+                        amount: amountToCredit,
+                        marketId: marketId,
+                        date: Timestamp.now(),
+                        type: 'payout',
+                        details: `Pagamento pela resolução de mercado: Opção ${winningOption} (${shares.toFixed(2)} ações).`
+                    });
+
+                    return amountToCredit;
+                }
+                return 0;
+            });
+        });
+
+        await Promise.all(payoutPromises);
+        
+        // 3. Atualizar o status final do Mercado
+        await setDoc(marketRef, { status: 'closed', winning_option: winningOption, resolved_at: Timestamp.now() }, { merge: true });
+    };
 
     const logout = () => {
         setUserData(null);
@@ -231,6 +505,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         placeBet,
+        sellBet,
+        deposit,
+        withdraw,
+        resolveMarket,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

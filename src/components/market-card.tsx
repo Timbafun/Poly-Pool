@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from 'react';
-import BuyModal from '../BuyModal'; 
+import TradeModal from '../TradeModal'; 
 import { useAuth } from '../AuthManager'; 
-import { useRouter } from 'next/router'; // Importar o Router
+import { useRouter } from 'next/router'; 
 
 function MarketCard({ market }) {
     const { userData } = useAuth();
@@ -23,13 +23,11 @@ function MarketCard({ market }) {
     const formatVolume = (volume) => `R$ ${volume.toFixed(2).replace('.', ',')}`;
 
     const handleCardClick = () => {
-        // Redireciona para a página de detalhes do mercado
         router.push(`/market/${market.id}`);
     };
 
-    // Ação de compra é chamada ao clicar nos botões 'Sim'/'Não'
     const handleBuyClick = (option, price, event) => {
-        event.stopPropagation(); // Evita que o clique do botão acione o clique do Card
+        event.stopPropagation(); 
         if (!isMarketOpen) return;
         
         setSelectedOption(option);
@@ -41,7 +39,6 @@ function MarketCard({ market }) {
 
     return (
         <>
-            {/* Adicionando onClick no div principal para navegação */}
             <div 
                 className="bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 p-4 flex flex-col cursor-pointer"
                 onClick={handleCardClick} 
@@ -64,7 +61,6 @@ function MarketCard({ market }) {
                     
                     <div className="flex items-center space-x-2">
                         <button 
-                            // Passando o evento para evitar a navegação
                             onClick={(e) => handleBuyClick('A', market.price_A, e)} 
                             className={`flex-grow p-3 rounded-lg text-[var(--card-foreground)] font-bold text-left ${getPriceColor(market.percentage_A)} transition-colors`}
                             disabled={!isMarketOpen}
@@ -78,7 +74,6 @@ function MarketCard({ market }) {
 
                     <div className="flex items-center space-x-2">
                         <button 
-                            // Passando o evento para evitar a navegação
                             onClick={(e) => handleBuyClick('B', market.price_B, e)}
                             className={`flex-grow p-3 rounded-lg text-[var(--card-foreground)] font-bold text-left ${getPriceColor(market.percentage_B)} transition-colors`}
                             disabled={!isMarketOpen}
@@ -99,11 +94,12 @@ function MarketCard({ market }) {
             </div>
             
             {isModalOpen && selectedOption && (
-                <BuyModal 
+                <TradeModal 
                     market={market}
                     option={selectedOption}
                     price={selectedPrice}
                     currentBalance={currentBalance}
+                    maxShares={0} // Max shares é 0 na Home, pois não temos o cálculo fácil aqui. O foco é a Compra.
                     onClose={() => setIsModalOpen(false)}
                 />
             )}
