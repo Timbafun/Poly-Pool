@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { db } from '@/firebase/config';
+import { db } from '../../lib/utils';
 import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
-import { useAuth } from '@/context/AuthContext';
-import AdminLayout from '@/components/dashboard/AdminLayout';
+import { useAuth } from '@/components/AuthManager';
 
 interface MarketData {
     title: string;
@@ -138,19 +137,19 @@ const AdminMarketDetailPage = () => {
     }, [marketId]);
 
     if (loading) {
-        return <AdminLayout><div className="p-8">Carregando autenticação...</div></AdminLayout>;
+        return <div className="p-8">Carregando autenticação...</div>;
     }
 
     if (!user || !isAdmin) {
-        return <AdminLayout><div className="p-8 text-red-600">Acesso negado. Apenas administradores.</div></AdminLayout>;
+        return <div className="p-8 text-red-600">Acesso negado. Apenas administradores.</div>;
     }
 
     if (firestoreError) {
-        return <AdminLayout><div className="p-8 text-red-600">Erro: {firestoreError}</div></AdminLayout>;
+        return <div className="p-8 text-red-600">Erro: {firestoreError}</div>;
     }
 
     if (!marketData) {
-        return <AdminLayout><div className="p-8">Carregando detalhes do mercado...</div></AdminLayout>;
+        return <div className="p-8">Carregando detalhes do mercado...</div>;
     }
     
     const formatDate = (timestamp: Timestamp | Date | undefined) => {
@@ -166,47 +165,45 @@ const AdminMarketDetailPage = () => {
     };
 
     return (
-        <AdminLayout>
-            <div className="p-8 max-w-4xl mx-auto">
-                <button 
-                    onClick={() => router.push('/admin')}
-                    className="mb-6 text-blue-600 hover:text-blue-800 font-medium"
-                >
-                    &larr; Voltar para a Lista de Mercados
-                </button>
+        <div className="p-8 max-w-4xl mx-auto">
+            <button 
+                onClick={() => router.push('/admin')}
+                className="mb-6 text-blue-600 hover:text-blue-800 font-medium"
+            >
+                &larr; Voltar para a Lista de Mercados
+            </button>
 
-                <h1 className="text-3xl font-extrabold mb-4">{marketData.title}</h1>
-                <p className={`text-sm font-semibold mb-6 p-2 rounded inline-block ${
-                    marketData.status === 'open' ? 'bg-green-200 text-green-800' :
-                    marketData.status === 'closed' ? 'bg-red-200 text-red-800' :
-                    marketData.status === 'resolved' ? 'bg-purple-200 text-purple-800' : 'bg-gray-200 text-gray-800'
-                }`}>
-                    Status: {marketData.status.toUpperCase()}
-                </p>
+            <h1 className="text-3xl font-extrabold mb-4">{marketData.title}</h1>
+            <p className={`text-sm font-semibold mb-6 p-2 rounded inline-block ${
+                marketData.status === 'open' ? 'bg-green-200 text-green-800' :
+                marketData.status === 'closed' ? 'bg-red-200 text-red-800' :
+                marketData.status === 'resolved' ? 'bg-purple-200 text-purple-800' : 'bg-gray-200 text-gray-800'
+            }`}>
+                Status: {marketData.status.toUpperCase()}
+            </p>
 
-                <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
-                    <div className="grid grid-cols-2 gap-4">
-                        <p><strong>Descrição:</strong> {marketData.description}</p>
-                        <p><strong>Criado em:</strong> {formatDate(marketData.created_at)}</p>
-                        <p><strong>Opção A:</strong> {marketData.option_a_name} ({marketData.option_a_price.toFixed(2)})</p>
-                        <p><strong>Opção B:</strong> {marketData.option_b_name} ({marketData.option_b_price.toFixed(2)})</p>
-                        <p><strong>Volume Total:</strong> R${marketData.total_volume.toFixed(2)}</p>
-                        <p><strong>Encerrar em:</strong> {formatDate(marketData.close_date)}</p>
-                        {marketData.payoutPerShare !== undefined && (
-                            <p className="col-span-2"><strong>Pagamento por Ação:</strong> R${marketData.payoutPerShare.toFixed(4)}</p>
-                        )}
-                    </div>
+            <div className="bg-gray-50 p-6 rounded-lg shadow-inner">
+                <div className="grid grid-cols-2 gap-4">
+                    <p><strong>Descrição:</strong> {marketData.description}</p>
+                    <p><strong>Criado em:</strong> {formatDate(marketData.created_at)}</p>
+                    <p><strong>Opção A:</strong> {marketData.option_a_name} ({marketData.option_a_price.toFixed(2)})</p>
+                    <p><strong>Opção B:</strong> {marketData.option_b_name} ({marketData.option_b_price.toFixed(2)})</p>
+                    <p><strong>Volume Total:</strong> R${marketData.total_volume.toFixed(2)}</p>
+                    <p><strong>Encerrar em:</strong> {formatDate(marketData.close_date)}</p>
+                    {marketData.payoutPerShare !== undefined && (
+                        <p className="col-span-2"><strong>Pagamento por Ação:</strong> R${marketData.payoutPerShare.toFixed(4)}</p>
+                    )}
                 </div>
-                
-                <LiquidationControls marketData={marketData} marketId={marketId as string} user={user} />
-                
-                {marketData.total_fee_amount && (
-                    <div className="mt-4 p-4 bg-yellow-100 rounded">
-                        <p><strong>Taxas do Sistema (5%):</strong> R${marketData.total_fee_amount.toFixed(2)}</p>
-                    </div>
-                )}
             </div>
-        </AdminLayout>
+            
+            <LiquidationControls marketData={marketData} marketId={marketId as string} user={user} />
+            
+            {marketData.total_fee_amount && (
+                <div className="mt-4 p-4 bg-yellow-100 rounded">
+                    <p><strong>Taxas do Sistema (5%):</strong> R${marketData.total_fee_amount.toFixed(2)}</p>
+                </div>
+            )}
+        </div>
     );
 };
 
