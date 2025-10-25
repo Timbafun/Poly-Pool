@@ -1,124 +1,104 @@
-import { useEffect, useState } from 'react';
-import { db } from '@/firebase/config';
-import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
-import { useRouter } from 'next/router';
-import { useAuth } from '@/components/AuthManager';
+"use client"; // Necessário devido ao uso de hooks
 
+import React, { useEffect, useState } from 'react';
+import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+// CORREÇÃO: Importa 'db' do firebase/config, com o caminho relativo correto
+import { db } from '../../lib/firebase/config'; 
+// CORREÇÃO: Usando 'next/router' para 'pages', o caminho deve ser resolvido corretamente
+import { useRouter } from 'next/router';
+// CORREÇÃO: Importa 'useAuth' do AuthManager, com o caminho relativo correto
+import { useAuth } from '../../components/AuthManager'; 
+
+// CORREÇÃO DE CAMINHO: Ajuste para refletir a subida correta de /src/pages/admin para /src/components
+import MarketForm from '../../components/MarketForm'; 
+import { MarketList } from '../../components/MarketList'; 
+
+// Definição de tipo (pode ser necessário criar um arquivo de tipos)
 interface Market {
     id: string;
     title: string;
-    status: 'open' | 'closed' | 'resolved';
+    status: 'open' | 'resolved';
+    resolution_date: Date;
     total_volume: number;
-    created_at: Timestamp;
+    // ... outras propriedades de mercado
 }
 
-const AdminMarketsPage = () => {
-    const { user, isAdmin, loading } = useAuth();
-    const [markets, setMarkets] = useState<Market[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+function AdminPanel() {
+    const { userData, loading } = useAuth();
     const router = useRouter();
+    const [markets, setMarkets] = useState<Market[]>([]);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isLoadingData, setIsLoadingData] = useState(true);
 
+    // 1. Redirecionamento e verificação de administrador
     useEffect(() => {
-        if (loading || !isAdmin) return;
+        if (!loading) {
+            if (!userData || !userData.isAdmin) {
+                // Redireciona para a página principal ou mostra erro
+                router.push('/');
+            }
+        }
+    }, [userData, loading, router]);
 
-        const q = query(collection(db, 'markets'), orderBy('created_at', 'desc'));
+    // 2. Carregamento de dados
+    useEffect(() => {
+        if (userData && userData.isAdmin) {
+            const marketsRef = collection(db, "markets");
+            const q = query(marketsRef, orderBy("resolution_date", "desc"));
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const marketsList: Market[] = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data() as Omit<Market, 'id'>
-            }));
-            setMarkets(marketsList);
-            setIsLoading(false);
-        }, (error) => {
-            setIsLoading(false);
-        });
+            const unsubscribe = onSnapshot(q, (snapshot) => {
+                const fetchedMarkets: Market[] = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    // Conversão de Timestamp para Date (se necessário)
+                    resolution_date: doc.data().resolution_date.toDate(),
+                })) as Market[];
+                
+                setMarkets(fetchedMarkets);
+                setIsLoadingData(false);
+            }, (error) => {
+                console.error("Erro ao carregar mercados:", error);
+                setIsLoadingData(false);
+            });
 
-        return () => unsubscribe();
-    }, [loading, isAdmin]);
+            return () => unsubscribe();
+        }
+    }, [userData]);
 
-    if (loading) {
-        return <div className="p-8">Carregando autenticação...</div>;
+    if (loading || !userData || !userData.isAdmin) {
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-900 text-red-500">
+                Acesso negado. Apenas administradores.
+            </div>
+        );
     }
-
-    if (!user || !isAdmin) {
-        return <div className="p-8 text-red-600">Acesso negado. Apenas administradores.</div>;
-    }
-
-    const formatDate = (timestamp: Timestamp) => {
-        if (!timestamp) return 'N/A';
-        const date = timestamp.toDate();
-        return date.toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
     
-    const handleViewDetails = (marketId: string) => {
-        router.push(`/admin/${marketId}`);
-    };
-
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            <h1 className="text-3xl font-extrabold mb-6">Administração de Mercados</h1>
-            
-            <button
-                onClick={() => router.push('/admin/create')}
-                className="mb-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-150"
-            >
-                + Novo Mercado
-            </button>
+        <div className="container mx-auto p-6 bg-[var(--background)] min-h-screen">
+            <header className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold text-[var(--primary)]">Painel Administrativo</h1>
+                <button 
+                    onClick={() => setIsFormOpen(true)}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                    Criar Novo Mercado
+                </button>
+            </header>
 
-            {isLoading ? (
-                <div className="text-center py-10">Carregando lista de mercados...</div>
-            ) : markets.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">Nenhum mercado encontrado.</div>
+            {isFormOpen && (
+                <MarketForm 
+                    onClose={() => setIsFormOpen(false)} 
+                    db={db} // Passando db para o formulário se necessário
+                />
+            )}
+
+            {isLoadingData ? (
+                <div className="text-center text-[var(--muted-foreground)]">Carregando mercados...</div>
             ) : (
-                <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Volume</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Criado em</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {markets.map((market) => (
-                                <tr key={market.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{market.title}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                            market.status === 'open' ? 'bg-green-100 text-green-800' :
-                                            market.status === 'closed' ? 'bg-red-100 text-red-800' :
-                                            'bg-purple-100 text-purple-800'
-                                        }`}>
-                                            {market.status.toUpperCase()}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">R${market.total_volume.toFixed(2)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(market.created_at)}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button
-                                            onClick={() => handleViewDetails(market.id)}
-                                            className="text-indigo-600 hover:text-indigo-900"
-                                        >
-                                            Detalhes / Resolver
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <MarketList markets={markets} />
             )}
         </div>
     );
-};
+}
 
-export default AdminMarketsPage;
+export default AdminPanel;

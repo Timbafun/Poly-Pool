@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../../components/AuthManager';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 function LoginPage() {
     const { register, currentUser, login, isLoading } = useAuth();
@@ -21,7 +21,7 @@ function LoginPage() {
     }
     
     if (currentUser) {
-        router.push('/');
+        router.push('/dashboard');
         return null;
     }
 
@@ -35,7 +35,7 @@ function LoginPage() {
         try {
             if (isLoginMode) {
                 await login(email, password);
-                router.push('/');
+                router.push('/dashboard');
             } else {
                 if (password.length < 6) {
                     setError('A senha deve ter no mínimo 6 caracteres.');
@@ -47,9 +47,10 @@ function LoginPage() {
                 }
                 
                 await register(email, password, nome, cpf, telefone);
-                router.push('/');
+                router.push('/dashboard');
             }
         } catch (err) {
+            console.error("Erro no Firebase Auth:", err); 
             let errorMessage = 'Ocorreu um erro. Verifique seus dados.';
             if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
                 errorMessage = 'E-mail ou senha inválidos.';
@@ -57,6 +58,8 @@ function LoginPage() {
                 errorMessage = 'Este e-mail já está cadastrado. Tente fazer login.';
             } else if (err.code === 'auth/invalid-email') {
                 errorMessage = 'O formato do e-mail é inválido.';
+            } else if (err.code === 'auth/too-many-requests') {
+                 errorMessage = 'Muitas tentativas de login. Tente novamente mais tarde.';
             }
 
             setError(errorMessage);
@@ -134,7 +137,8 @@ function LoginPage() {
                 )}
                 
                 <button type="submit" 
-                        className="w-full p-3 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] font-bold hover:opacity-90 transition-opacity">
+                        disabled={isLoading}
+                        className="w-full p-3 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
                     {isLoginMode ? 'Entrar' : 'Cadastrar e Entrar'}
                 </button>
             </form>

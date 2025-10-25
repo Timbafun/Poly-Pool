@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../../components/AuthManager';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 
 function CadastroPage() {
     const { register, currentUser, login, isLoading } = useAuth();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation';
 import React, { useState, useEffect } from 'react';
 import { useMarket } from '../../hooks/useMarkets';
 import TradeModal from '../../components/TradeModal';

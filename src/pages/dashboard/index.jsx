@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { useRouter } from 'next/router';
+import { useRouter } from 'next/navigation'; // CORREÇÃO VITAL
 import { useAuth } from '../../components/AuthManager';
 import BalanceModal from '../../components/BalanceModal';
 import { useBalanceTransactions } from '../../hooks/useBalanceTransactions';
@@ -11,11 +11,11 @@ function PortfolioPage() {
     const { currentUser, userData, isLoading: isAuthLoading, logout } = useAuth();
     const router = useRouter();
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState(''); 
+    const [modalMode, setModalMode] = useState('');
     const [activeTab, setActiveTab] = useState('positions');
 
     const { transactions: balanceTransactions, isLoading: isBalanceTransLoading } = useBalanceTransactions();
-    const { marketTransactions, openPositions, isLoading: isMarketActivityLoading } = useMarketActivity(); 
+    const { marketTransactions, openPositions, isLoading: isMarketActivityLoading } = useMarketActivity();
 
     if (isAuthLoading) {
         return <div className="text-center p-20 text-xl text-[var(--primary-foreground)]">Carregando autenticação...</div>;
@@ -59,123 +59,123 @@ function PortfolioPage() {
         return (
              <div className="overflow-x-auto">
                  <table className="min-w-full divide-y divide-[var(--border)]">
-                    <thead>
-                        <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Mercado</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Opção</th>
-                            <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Ações</th>
-                            <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Preço Atual</th>
-                            <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Valor Atual (R$)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border)]">
-                        {openPositionsArray.map((p) => (
-                            <tr 
-                                key={`${p.marketId}-${p.option}`} 
-                                className="hover:bg-[var(--background)] transition-colors cursor-pointer"
-                                onClick={() => router.push(`/market/${p.marketId}`)}
-                            >
-                                <td className="px-4 py-2 whitespace-nowrap text-sm font-semibold">{p.marketTitle}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm">{p.optionText}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{p.shares.toFixed(2)}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{formatBRL(p.currentPrice)}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-right font-bold">{formatBRL(p.shares * p.currentPrice)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                     <thead>
+                         <tr>
+                             <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Mercado</th>
+                             <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Opção</th>
+                             <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Ações</th>
+                             <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Preço Atual</th>
+                             <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Valor Atual (R$)</th>
+                         </tr>
+                     </thead>
+                     <tbody className="divide-y divide-[var(--border)]">
+                         {openPositionsArray.map((p) => (
+                             <tr 
+                                 key={`${p.marketId}-${p.option}`} 
+                                 className="hover:bg-[var(--background)] transition-colors cursor-pointer"
+                                 onClick={() => router.push(`/market/${p.marketId}`)}
+                             >
+                                 <td className="px-4 py-2 whitespace-nowrap text-sm font-semibold">{p.marketTitle}</td>
+                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{p.optionText}</td>
+                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{p.shares.toFixed(2)}</td>
+                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{formatBRL(p.currentPrice)}</td>
+                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-right font-bold">{formatBRL(p.shares * p.currentPrice)}</td>
+                             </tr>
+                         ))}
+                     </tbody>
+                 </table>
              </div>
         );
     };
 
     const BalanceHistoryTable = () => {
          if (isBalanceTransLoading) {
-            return <p className="text-center p-8 text-[var(--muted-foreground)]">Carregando histórico de saldo...</p>;
-        }
+             return <p className="text-center p-8 text-[var(--muted-foreground)]">Carregando histórico de saldo...</p>;
+         }
         
-        if (balanceTransactions.length === 0) {
-            return <p className="text-center p-8 text-[var(--muted-foreground)]">Nenhuma transação de saldo encontrada.</p>;
-        }
+         if (balanceTransactions.length === 0) {
+             return <p className="text-center p-8 text-[var(--muted-foreground)]">Nenhuma transação de saldo encontrada.</p>;
+         }
 
         return (
              <div className="overflow-x-auto">
                  <table className="min-w-full divide-y divide-[var(--border)]">
-                    <thead>
-                        <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Data</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Tipo</th>
-                            <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Valor (R$)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border)]">
-                        {balanceTransactions.map((t) => (
-                            <tr key={t.id} className="hover:bg-[var(--background)] transition-colors">
-                                <td className="px-4 py-2 whitespace-nowrap text-sm">{new Date(t.date.seconds * 1000).toLocaleString('pt-BR')}</td>
-                                <td className={`px-4 py-2 whitespace-nowrap text-sm font-medium ${t.type === 'deposit' ? 'text-green-500' : t.type === 'withdraw' ? 'text-red-500' : 'text-yellow-500'}`}>
-                                    {t.type.toUpperCase()}
-                                </td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{formatBRL(t.amount)}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                     <thead>
+                         <tr>
+                             <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Data</th>
+                             <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Tipo</th>
+                             <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Valor (R$)</th>
+                         </tr>
+                     </thead>
+                     <tbody className="divide-y divide-[var(--border)]">
+                         {balanceTransactions.map((t) => (
+                             <tr key={t.id} className="hover:bg-[var(--background)] transition-colors">
+                                 <td className="px-4 py-2 whitespace-nowrap text-sm">{new Date(t.date.seconds * 1000).toLocaleString('pt-BR')}</td>
+                                 <td className={`px-4 py-2 whitespace-nowrap text-sm font-medium ${t.type === 'deposit' ? 'text-green-500' : t.type === 'withdraw' ? 'text-red-500' : 'text-yellow-500'}`}>
+                                     {t.type.toUpperCase()}
+                                 </td>
+                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-right">{formatBRL(t.amount)}</td>
+                             </tr>
+                         ))}
+                     </tbody>
+                 </table>
              </div>
         );
     };
     
     const MarketActivityTable = () => {
          if (isMarketActivityLoading) {
-            return <p className="p-8 text-center text-[var(--muted-foreground)]">Carregando atividade de mercado...</p>;
-        }
+             return <p className="p-8 text-center text-[var(--muted-foreground)]">Carregando atividade de mercado...</p>;
+         }
         
-        if (marketTransactions.length === 0) {
-            return <p className="p-8 text-center text-[var(--muted-foreground)]">Nenhuma transação de mercado registrada.</p>;
-        }
+         if (marketTransactions.length === 0) {
+             return <p className="p-8 text-center text-[var(--muted-foreground)]">Nenhuma transação de mercado registrada.</p>;
+         }
 
         return (
              <div className="overflow-x-auto">
                  <table className="min-w-full divide-y divide-[var(--border)]">
-                    <thead>
-                        <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Data</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Tipo</th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Mercado</th>
-                            <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Valor (R$)</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border)]">
-                        {marketTransactions.map((t) => {
-                            let typeColor = 'text-[var(--foreground)]';
-                            let amountDisplay = t.amount_invested || t.amount_received || t.amount || 0;
-                            let typeText = t.type.toUpperCase();
+                     <thead>
+                         <tr>
+                             <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Data</th>
+                             <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Tipo</th>
+                             <th className="px-4 py-2 text-left text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Mercado</th>
+                             <th className="px-4 py-2 text-right text-xs font-medium text-[var(--muted-foreground)] uppercase tracking-wider">Valor (R$)</th>
+                         </tr>
+                     </thead>
+                     <tbody className="divide-y divide-[var(--border)]">
+                         {marketTransactions.map((t) => {
+                             let typeColor = 'text-[var(--foreground)]';
+                             let amountDisplay = t.amount_invested || t.amount_received || t.amount || 0;
+                             let typeText = t.type.toUpperCase();
 
-                            if (t.type === 'buy') {
-                                typeColor = 'text-red-500';
-                            } else if (t.type === 'sell' || t.type === 'payout') {
-                                typeColor = 'text-green-500';
-                            }
+                             if (t.type === 'buy') {
+                                 typeColor = 'text-red-500';
+                             } else if (t.type === 'sell' || t.type === 'payout') {
+                                 typeColor = 'text-green-500';
+                             }
 
-                            return (
-                                <tr key={t.id} className="hover:bg-[var(--background)] transition-colors">
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm">{new Date(t.date.seconds * 1000).toLocaleString('pt-BR')}</td>
-                                    <td className={`px-4 py-2 whitespace-nowrap text-sm font-medium ${typeColor}`}>
-                                        {typeText}
-                                    </td>
-                                    <td 
-                                        className="px-4 py-2 whitespace-nowrap text-sm font-semibold cursor-pointer hover:text-[var(--primary)]"
-                                        onClick={() => t.marketId && router.push(`/market/${t.marketId}`)}
-                                    >
-                                        {t.marketTitle} ({t.optionText || t.option || '-'})
-                                    </td>
-                                    <td className={`px-4 py-2 whitespace-nowrap text-sm text-right font-bold ${typeColor}`}>
-                                        {t.type === 'buy' && '- '}
-                                        {formatBRL(amountDisplay)}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                             return (
+                                 <tr key={t.id} className="hover:bg-[var(--background)] transition-colors">
+                                     <td className="px-4 py-2 whitespace-nowrap text-sm">{new Date(t.date.seconds * 1000).toLocaleString('pt-BR')}</td>
+                                     <td className={`px-4 py-2 whitespace-nowrap text-sm font-medium ${typeColor}`}>
+                                         {typeText}
+                                     </td>
+                                     <td 
+                                         className="px-4 py-2 whitespace-nowrap text-sm font-semibold cursor-pointer hover:text-[var(--primary)]"
+                                         onClick={() => t.marketId && router.push(`/market/${t.marketId}`)}
+                                     >
+                                         {t.marketTitle} ({t.optionText || t.option || '-'})
+                                     </td>
+                                     <td className={`px-4 py-2 whitespace-nowrap text-sm text-right font-bold ${typeColor}`}>
+                                         {t.type === 'buy' && '- '}
+                                         {formatBRL(amountDisplay)}
+                                     </td>
+                                 </tr>
+                             );
+                         })}
+                     </tbody>
+                 </table>
              </div>
         );
     };
@@ -245,13 +245,13 @@ function PortfolioPage() {
                         >
                             Posições Abertas
                         </button>
-                         <button
+                           <button
                             onClick={() => setActiveTab('market_activity')}
                             className={`py-2 px-4 font-semibold ${activeTab === 'market_activity' ? 'text-[var(--primary)] border-b-2 border-[var(--primary)]' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}
                         >
                             Transações de Mercado
                         </button>
-                         <button
+                           <button
                             onClick={() => setActiveTab('balance_history')}
                             className={`py-2 px-4 font-semibold ${activeTab === 'balance_history' ? 'text-[var(--primary)] border-b-2 border-[var(--primary)]' : 'text-[var(--muted-foreground)] hover:text-[var(--foreground)]'}`}
                         >
@@ -277,4 +277,3 @@ function PortfolioPage() {
 }
 
 export default PortfolioPage;
-```eof

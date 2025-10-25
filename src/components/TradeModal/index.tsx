@@ -5,32 +5,33 @@ import { useAuth } from '../AuthManager';
 
 function TradeModal({ market, option, price, onClose, currentBalance, maxShares }) {
     const { placeBet, sellBet } = useAuth();
-    const [mode, setMode] = useState('buy'); // 'buy' ou 'sell'
-    const [amount, setAmount] = useState(10.00); 
-    const [shares, setShares] = useState(0); 
+    const [mode, setMode] = useState('buy');
+    const [amount, setAmount] = useState(10.00);
+    const [shares, setShares] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const [message, setMessage] = useState(null);
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const optionText = market[`option_${option}`];
     
-    // Cálculo:
     const calculatedShares = mode === 'buy' ? amount / price : shares;
-    const calculatedAmount = mode === 'sell' ? shares * price : amount;
+    const calculatedAmountValue = mode === 'sell' ? shares * price : amount;
 
     const formatBRL = (value) => `R$ ${value.toFixed(2).replace('.', ',')}`;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(null);
+        setMessage(null);
+        setIsSuccess(false);
         
         if (mode === 'buy') {
             if (amount <= 0 || amount > currentBalance) {
-                setError(amount <= 0 ? "O valor deve ser positivo." : "Saldo insuficiente.");
+                setMessage(amount <= 0 ? "O valor deve ser positivo." : "Saldo insuficiente.");
                 return;
             }
         } else {
             if (shares <= 0 || shares > maxShares) {
-                setError(shares <= 0 ? "O número de ações deve ser positivo." : `Você só possui ${maxShares.toFixed(2)} ações.`);
+                setMessage(shares <= 0 ? "O número de ações deve ser positivo." : `Você só possui ${maxShares.toFixed(2)} ações.`);
                 return;
             }
         }
@@ -39,14 +40,15 @@ function TradeModal({ market, option, price, onClose, currentBalance, maxShares 
         try {
             if (mode === 'buy') {
                 await placeBet(market.id, option, amount, price);
-                alert(`Compra de ${formatBRL(amount)} em "${optionText}" realizada com sucesso!`);
+                setMessage(`Compra de ${formatBRL(amount)} em "${optionText}" realizada com sucesso!`);
             } else {
                 await sellBet(market.id, option, shares, price);
-                alert(`Venda de ${shares.toFixed(2)} ações por ${formatBRL(calculatedAmount)} realizada com sucesso!`);
+                setMessage(`Venda de ${shares.toFixed(2)} ações por ${formatBRL(calculatedAmountValue)} realizada com sucesso!`);
             }
-            onClose(); 
+            setIsSuccess(true);
+            setTimeout(onClose, 1500);
         } catch (err) {
-            setError(err.message || "Erro ao processar a negociação. Tente novamente.");
+            setMessage(err.message || "Erro ao processar a negociação. Tente novamente.");
         } finally {
             setIsLoading(false);
         }
@@ -70,25 +72,28 @@ function TradeModal({ market, option, price, onClose, currentBalance, maxShares 
                 </h3>
                 <p className="text-[var(--foreground)] mb-4">{market.title}</p>
                 
-                {/* Abas de Compra/Venda */}
                 <div className="flex mb-4 p-1 bg-[var(--background)] rounded-lg">
                     <button
-                        onClick={() => { setMode('buy'); setError(null); }}
+                        onClick={() => { setMode('buy'); setMessage(null); setIsSuccess(false); }}
                         className={`flex-1 p-2 rounded-md font-semibold transition-colors ${mode === 'buy' ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'text-[var(--foreground)] hover:bg-[var(--secondary)]'}`}
                         disabled={isLoading}
                     >
                         Comprar
                     </button>
                     <button
-                        onClick={() => { setMode('sell'); setError(null); }}
+                        onClick={() => { setMode('sell'); setMessage(null); setIsSuccess(false); }}
                         className={`flex-1 p-2 rounded-md font-semibold transition-colors ${mode === 'sell' ? 'bg-[var(--primary)] text-[var(--primary-foreground)]' : 'text-[var(--foreground)] hover:bg-[var(--secondary)]'}`}
-                        disabled={isLoading}
+                        disabled={isLoading || maxShares <= 0}
                     >
                         Vender
                     </button>
                 </div>
                 
-                {error && <p className="bg-[var(--destructive)] text-[var(--destructive-foreground)] p-3 rounded mb-4 text-sm text-center">{error}</p>}
+                {message && (
+                    <p className={`p-3 rounded mb-4 text-sm text-center ${isSuccess ? 'bg-green-600 text-white' : 'bg-[var(--destructive)] text-[var(--destructive-foreground)]'}`}>
+                        {message}
+                    </p>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     
@@ -118,38 +123,38 @@ function TradeModal({ market, option, price, onClose, currentBalance, maxShares 
                             />
                         </div>
                     ) : (
-                         <div>
-                            <label className="block text-sm font-medium mb-1 text-[var(--foreground)]">
-                                Quantidade de Ações a Vender (Máx: {maxShares.toFixed(2)})
-                            </label>
-                            <input 
-                                type="number"
-                                step="0.01"
-                                min="0.01"
-                                max={maxShares.toFixed(2)}
-                                value={shares.toFixed(2)}
-                                onChange={(e) => setShares(parseFloat(e.target.value) || 0)}
-                                className="w-full p-3 rounded-md bg-[var(--input)] text-[var(--foreground)] border border-[var(--border)] focus:ring-[var(--ring)] focus:border-[var(--ring)] outline-none"
-                                disabled={isLoading}
-                            />
-                        </div>
+                             <div>
+                                <label className="block text-sm font-medium mb-1 text-[var(--foreground)]">
+                                    Quantidade de Ações a Vender (Máx: {maxShares.toFixed(2)})
+                                </label>
+                                <input 
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    max={maxShares.toFixed(2)}
+                                    value={shares.toFixed(2)}
+                                    onChange={(e) => setShares(parseFloat(e.target.value) || 0)}
+                                    className="w-full p-3 rounded-md bg-[var(--input)] text-[var(--foreground)] border border-[var(--border)] focus:ring-[var(--ring)] focus:border-[var(--ring)] outline-none"
+                                    disabled={isLoading}
+                                />
+                            </div>
                     )}
                     
                     <div className="p-3 bg-[var(--background)] rounded-lg text-[var(--foreground)]">
                         <p className="text-sm">
-                            {mode === 'buy' ? 'Você receberá aproximadamente:' : 'Você receberá aproximadamente:'}
+                            {mode === 'buy' ? 'Você receberá aproximadamente:' : 'Você receberá (R$) aproximadamente:'}
                         </p>
                         <p className="font-bold text-2xl text-[var(--primary)] mt-1">
-                            {mode === 'buy' ? `${calculatedShares.toFixed(2)} ações` : formatBRL(calculatedAmount)}
+                            {mode === 'buy' ? `${calculatedShares.toFixed(2)} ações` : formatBRL(calculatedAmountValue)}
                         </p>
                     </div>
 
                     <button 
                         type="submit"
                         className="w-full p-3 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] font-bold hover:opacity-90 transition-opacity"
-                        disabled={isLoading || calculatedAmount <= 0}
+                        disabled={isLoading || (mode === 'buy' && amount <= 0) || (mode === 'sell' && shares <= 0)}
                     >
-                        {isLoading ? 'Processando...' : mode === 'buy' ? `Confirmar Compra de ${formatBRL(amount)}` : `Confirmar Venda por ${formatBRL(calculatedAmount)}`}
+                        {isLoading ? 'Processando...' : mode === 'buy' ? `Confirmar Compra de ${formatBRL(amount)}` : `Confirmar Venda por ${formatBRL(calculatedAmountValue)}`}
                     </button>
                 </form>
             </div>

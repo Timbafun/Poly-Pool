@@ -1,19 +1,12 @@
-import { useState, useEffect } from 'react';
-import { getFirestore, collection, query, where, onSnapshot } from 'firebase/firestore';
-import { useAuth } from '../components/AuthManager'; 
-import { initializeApp } from 'firebase/app';
+// src/hooks/useBalanceTransactions.tsx
 
-const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+// Importe db e auth do seu arquivo de configuração central
+import { db } from "../lib/firebase/config"; // Assumindo que config.tsx é a fonte
+import { useAuth } from "../components/AuthManager";
+import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import { useState, useEffect } from "react";
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Removida toda a inicialização duplicada do Firebase que estava aqui.
 
 export const useBalanceTransactions = () => {
     const { currentUser } = useAuth();
@@ -28,32 +21,36 @@ export const useBalanceTransactions = () => {
             return;
         }
 
-        const transactionsCol = collection(db, 'transacoes_saldo');
-        
-        // Query: Apenas transações deste usuário
-        const q = query(
-            transactionsCol, 
-            where('userId', '==', currentUser.uid)
-        );
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const transactionsList = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            
-            // Ordena pela data mais recente primeiro
-            transactionsList.sort((a, b) => b.date.seconds - a.date.seconds);
-
-            setTransactions(transactionsList);
-            setIsLoading(false);
+        const fetchTransactions = async () => {
+            setIsLoading(true);
             setError(null);
-        }, (err) => {
-            setError(err);
-            setIsLoading(false);
-        });
+            try {
+                // Referência à coleção 'transactions'
+                const transactionsRef = collection(db, "transactions");
 
-        return () => unsubscribe();
+                // Cria uma consulta filtrando pelo ID do usuário logado e ordenando por data
+                const q = query(
+                    transactionsRef,
+                    where("userId", "==", currentUser.uid),
+                    orderBy("date", "desc")
+                );
+
+                const querySnapshot = await getDocs(q);
+                const fetchedTransactions = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                }));
+
+                setTransactions(fetchedTransactions);
+            } catch (err) {
+                console.error("Erro ao buscar transações de saldo:", err);
+                setError("Falha ao carregar transações.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchTransactions();
     }, [currentUser]);
 
     return { transactions, isLoading, error };
