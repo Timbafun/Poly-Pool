@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../components/AuthManager';
 import { useRouter } from 'next/navigation';
 
@@ -16,12 +16,21 @@ function LoginPage() {
     const [isLoginMode, setIsLoginMode] = useState(true);
     const [error, setError] = useState('');
 
+    // **CORREÇÃO CRÍTICA**: Redirecionamento dentro do useEffect.
+    // Isso garante que router.push() só seja chamado no lado do cliente (browser),
+    // após a montagem do componente, evitando o erro de SSR.
+    useEffect(() => {
+        if (!isLoading && currentUser) {
+            router.push('/dashboard');
+        }
+    }, [currentUser, isLoading, router]);
+
     if (isLoading) {
         return <div className="text-center p-12 text-lg text-[var(--primary-foreground)]">Carregando...</div>;
     }
     
+    // Retorna null enquanto espera o useEffect redirecionar
     if (currentUser) {
-        router.push('/dashboard');
         return null;
     }
 
@@ -35,7 +44,7 @@ function LoginPage() {
         try {
             if (isLoginMode) {
                 await login(email, password);
-                router.push('/dashboard');
+                // O redirecionamento após o login será tratado automaticamente pelo useEffect
             } else {
                 if (password.length < 6) {
                     setError('A senha deve ter no mínimo 6 caracteres.');
@@ -47,7 +56,7 @@ function LoginPage() {
                 }
                 
                 await register(email, password, nome, cpf, telefone);
-                router.push('/dashboard');
+                // O redirecionamento após o registro será tratado automaticamente pelo useEffect
             }
         } catch (err) {
             console.error("Erro no Firebase Auth:", err); 
